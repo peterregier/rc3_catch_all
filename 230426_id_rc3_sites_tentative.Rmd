@@ -1,5 +1,5 @@
 ---
-title: "230426_id_rc3_sites_tentative"
+title: "Tentatively ID RC3 CY23 sites"
 author: "PR"
 date: "2023-04-26"
 output: html_document
@@ -30,9 +30,14 @@ common_crs = 4326
 
 ```
 
+### Overview
+
+The general goal here is to identify ~20 sites across YRB that will (hopefully) capture differences in ecosystem respiration driven by the Schneider Springs fire. The data used aren't synced with Github because shapefiles are too big...
+
+
 ### First, bring in and visualize sites by burn type
 
-```{r Load datasets, fig.height = 5, fig.width = 6, fig.align = "center"}
+```{r Load datasets, fig.height = 5, fig.width = 6, fig.align = "left"}
 
 sites <- read_csv("data/Site_List_2.29.23_VGC.csv", skip = 3) %>% 
   clean_names() %>% 
@@ -68,6 +73,7 @@ ss21_sites[ss21_sites %in% sss_burned]
 Now, let's see which unburned sites were sampled in SS21: 
 
 ```{r}
+
 sss_unburned <- sites %>% filter(study_group == "SSS" & type == "Reference") %>% pull(site_id)
 
 ss21_sites[ss21_sites %in% sss_unburned]
@@ -75,8 +81,39 @@ ss21_sites[ss21_sites %in% sss_unburned]
 
 So this is interesting! If we included the 11 reference sites that have data for SS21 and SS22, and the 11 burned SSS site (of which 3 were included in both SS21 and SS22), we'd have 22 sites. It's not ideal that we don't have pre-fire data for most of the impacted sites, but this looks like a nice potential group. Let's use histograms to see if distributions of potential drivers of respiration differ between burned and unburned (reference) groups.
 
-```{r}
+```{r, fig.height = 5, fig.width = 8, fig.align = "left"}
 
-site_list_v1 <- 
+site_list_v1 <- c(sss_burned, ss21_sites[ss21_sites %in% sss_unburned])
+
+site_list_v1
+
+sites_v1 <- sites %>%
+  filter(site_id %in% site_list_v1)
+
+## Read in Morgan's dataset
+## Column IDs in data/Column_Header_Meanings.xlsx
+## AriditySite - ratio of precip to ET
+## PctShrb2016Ws - percent cover as shrub/shrubland
+## PctMxFst2016Ws - percent cover as mixed deciduous/evergreen forest
+## PctConif2016Ws - percent cover as evergreen forest
+site_metadata <- read_csv("data/Site_Selection_Geospatial_Output_4.20.23.csv") %>%
+  rename("site_id" = site, 
+         "stream_order" = streamorde) %>%
+  dplyr::select(site_id, stream_order, AriditySite, PctShrb2016Ws, PctConif2016Ws) %>% 
+  clean_names()
+  
+## Join the datasets
+site_metadata_v1 <- inner_join(site_metadata, sites_v1, by = "site_id")
+
+make_density_plot <- function(var){
+  ggplot(site_metadata_v1, aes_string(var, fill = "type")) + 
+    geom_density(alpha = 0.5)
+}
+
+plot_grid(make_density_plot("stream_order") + ggtitle("Stream order"), 
+          make_density_plot("aridity_site") + ggtitle("Aridity"), 
+          make_density_plot("pct_shrb2016ws") + ggtitle("% Shrubs"), 
+          make_density_plot("pct_conif2016ws") + ggtitle("% Conifers"), 
+          ncol = 2)
 ```
-
+***I have not looked at SSFS sites***. My priority here is more data for sites we use, since we've got spatial in spades, but temporal is limiting and is an important consideration. Also interpreting a single point in time for some sites and not others feels hard to defend to me.
