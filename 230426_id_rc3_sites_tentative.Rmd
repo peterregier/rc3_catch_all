@@ -1,0 +1,82 @@
+---
+title: "230426_id_rc3_sites_tentative"
+author: "PR"
+date: "2023-04-26"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F,
+                      message = F,
+                      warning = F)
+```
+
+
+```{r Setup}
+
+## Load packages
+require(pacman)
+p_load(tidyverse, 
+       sf, 
+       raster, 
+       janitor,
+       ggsflabel, 
+       plotly,
+       tmaptools, #crop_shape
+       cowplot)
+
+## Set common crs
+common_crs = 4326
+
+```
+
+### First, bring in and visualize sites by burn type
+
+```{r Load datasets, fig.height = 5, fig.width = 6, fig.align = "center"}
+
+sites <- read_csv("data/Site_List_2.29.23_VGC.csv", skip = 3) %>% 
+  clean_names() %>% 
+  mutate(study_group = str_split(site_name, "_", simplify = T)[,1], 
+         site_id = str_split(site_name, "_", simplify = T)[,2]) %>% 
+  select(site_name, study_group, site_id, lat, long, type)
+  
+ggplot(sites, aes(site_id, type)) + geom_col() + 
+  facet_wrap(~study_group, ncol = 1, scales = "free") + 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+```
+
+We'll focus first on SSS sites since we have historic data for them. In particular, we should focus on sites that have **pre-fire (SS21)** data. So. Sites ID'ed as burned are: 
+
+```{r}
+sss_burned <- sites %>% filter(study_group == "SSS" & type == "Burned") %>% pull(site_id)
+
+sss_burned
+```
+
+Of these 11 sites, only 3 were in the SS21 campaign:
+
+
+```{r}
+ss21_sites <- read_csv("data/230426_igsns_matched_w_sites.csv") %>% 
+  filter(study == "ss21") %>% select(site_id) %>% distinct() %>% pull()
+
+ss21_sites[ss21_sites %in% sss_burned]
+
+```
+
+Now, let's see which unburned sites were sampled in SS21: 
+
+```{r}
+sss_unburned <- sites %>% filter(study_group == "SSS" & type == "Reference") %>% pull(site_id)
+
+ss21_sites[ss21_sites %in% sss_unburned]
+```
+
+So this is interesting! If we included the 11 reference sites that have data for SS21 and SS22, and the 11 burned SSS site (of which 3 were included in both SS21 and SS22), we'd have 22 sites. It's not ideal that we don't have pre-fire data for most of the impacted sites, but this looks like a nice potential group. Let's use histograms to see if distributions of potential drivers of respiration differ between burned and unburned (reference) groups.
+
+```{r}
+
+site_list_v1 <- 
+```
+

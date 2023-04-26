@@ -1,0 +1,242 @@
+---
+title: "230424_review_rc_datasets"
+author: "PR"
+date: "2023-04-24"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, 
+                      message = F,
+                      warning = F)
+```
+
+## Goals
+
+There are a lot of RC datasets out there, and it's hard to keep them straight. We are specifically interested in Wenas Creek as our fire-impacted watershed. The goals here are:
+
+1. review what datasets are published, and what they contain
+2. review what datasets are in prep and what they contain and 
+3. explore what datasets are most useful.
+
+
+### Background on data packages
+
+In trying to keep this copacetic, I'm only using data published on ESS-DIVE. 
+
+```{r Setup}
+
+require(pacman)
+p_load(tidyverse, 
+       janitor, 
+       cowplot)
+
+theme_set(theme_bw())
+
+```
+
+### SS21 - RC2 Spatial study 2021
+
+We have single measurements available for W10 and W20 from SS21, data types include Manta, MiniDots, and grab samples. 
+
+```{r Read in 21 sensor data}
+
+ss21_manta <- read_csv("data/SFA_SpatialStudy_2021_SensorData_v2/MantaRiver/Plots_and_Summary_Statistics/MantaRiver_Summary_Statistics.csv", skip = 23) %>% 
+  clean_names() %>% 
+  dplyr::select(site_id, date, temperature_mean, specific_conductance_mean, turbidity_mean, p_h_mean)
+
+ss21_minidot <- read_csv("data/SFA_SpatialStudy_2021_SensorData_v2/MinidotManualChamber/Plots_and_Summary_Statistics/Minidot_Summary_Statistics_v2.csv", skip = 48) %>% 
+  clean_names() %>% 
+  select(site_id, date, contains("_mean"), matches("^dissolved_oxygen.*slope$")) %>% 
+  select(-contains("saturation")) %>% 
+    rowwise() %>% 
+  mutate(temp_mean = mean(temperature_1_mean, temperature_2_mean, temperature_3_mean), 
+         do_mean = mean(dissolved_oxygen_1_mean, dissolved_oxygen_2_mean, dissolved_oxygen_3_mean), 
+         do_slope = dissolved_oxygen_1_slope, dissolved_oxygen_2_slope, dissolved_oxygen_3_slope) %>% 
+  select(site_id, date, temp_mean, do_mean, do_slope)
+
+ss21_sensors <- full_join(ss21_manta, ss21_minidot, by = c("site_id", "date"))
+
+```
+
+
+```{r Plot SS21 sensors}
+
+make_ss21_plot <- function(var){
+  ss21_sensors %>% 
+  filter(grepl("W", site_id)) %>% 
+  ggplot(aes(site_id, {{var}})) + 
+    geom_col()
+}
+
+plot_grid(make_ss21_plot(temp_mean), 
+          make_ss21_plot(specific_conductance_mean), 
+          make_ss21_plot(turbidity_mean), 
+          make_ss21_plot(do_slope), 
+          nrow = 1)
+          
+```
+
+
+```{r Read in SS21 samples}
+
+ss21_igsns <- tibble(sample_name = c("SPS_0057", "SPS_0058"), 
+                     site_id = c("W20", "W10"))
+
+ss21_doc_ions <- read_csv("data/SFA_SpatialStudy_2021_SampleData/SPS_NPOC_TN_DIC_TSS_Ions_Summary.csv") %>% 
+  clean_names() %>% 
+  rename_all(funs(stringr::str_replace_all(., "mean_[:digit:]{5}_", ""))) %>% 
+  select(sample_name, contains("mg_per_l")) %>% 
+  mutate(across(everything(), ~replace(., . ==  -9999 , NA)))
+
+ss21_samples <- inner_join(ss21_doc_ions, ss21_igsns, by = "sample_name")
+
+```
+
+
+```{r Plot SS21 samples}
+
+make_ss21_sample_plot <- function(var){
+  ss21_samples %>% 
+  ggplot(aes(site_id, {{var}})) + 
+    geom_col()
+}
+
+plot_grid(make_ss21_sample_plot(dic_mg_per_l_as_c), 
+          make_ss21_sample_plot(npoc_mg_per_l_as_c), 
+          make_ss21_sample_plot(tn_mg_per_l_as_n), 
+          make_ss21_sample_plot(no3_mg_per_l_as_no3), 
+          make_ss21_sample_plot(tss_mg_per_l), 
+          nrow = 1)
+          
+```
+
+
+### TS21 - RC2 Temporal study 2021
+
+It doesn't look like Wenas was sampled, **Is that right??**
+
+
+### SS22 - Spatial study 2022
+
+```{r Read in sensor data}
+
+ss22_manta <- read_csv("data/SSS_Data_Package/MantaRiver/Plots_and_Summary_Statistics/SSS_Water_Temp_SpC_Turb_pH_ChlA_Summary.csv", skip = 15) %>% 
+  clean_names() %>% 
+  dplyr::select(site_id, date, temperature_mean, specific_conductance_mean, turbidity_mean, p_h_mean)
+
+ss22_minidot <- read_csv("data/SSS_Data_Package/miniDOTManualChamber/Plots_and_Summary_Statistics/SSS_Water_DO_Temp_Summary.csv", skip = 48) %>% 
+  clean_names() %>% 
+  select(site_id, date, contains("_mean"), matches("^dissolved_oxygen.*slope$")) %>% 
+  select(-contains("saturation")) %>% 
+    rowwise() %>% 
+  mutate(temp_mean = mean(temperature_1_mean, temperature_2_mean, temperature_3_mean), 
+         do_mean = mean(dissolved_oxygen_1_mean, dissolved_oxygen_2_mean, dissolved_oxygen_3_mean), 
+         do_slope = dissolved_oxygen_1_slope, dissolved_oxygen_2_slope, dissolved_oxygen_3_slope) %>% 
+  select(site_id, date, temp_mean, do_mean, do_slope)
+
+ss22_sensors <- full_join(ss22_manta, ss22_minidot, by = c("site_id", "date"))
+
+```
+
+
+
+```{r Plot SS22 sensors}
+
+make_ss22_plot <- function(var){
+  ss22_sensors %>% 
+  filter(grepl("W", site_id)) %>% 
+  ggplot(aes(site_id, {{var}})) + 
+    geom_col()
+}
+
+plot_grid(make_ss22_plot(temp_mean), 
+          make_ss22_plot(specific_conductance_mean), 
+          make_ss22_plot(turbidity_mean), 
+          make_ss22_plot(do_slope), 
+          nrow = 1)
+          
+```
+
+
+```{r Read in SS22 samples}
+
+ss22_igsns <- tibble(sample_name = c("SSS024", "SSS036"), 
+                     site_id = c("W20", "W10"))
+
+ss22_respiration <- read_csv("data/CM_SSS_Data_Package/CM_SSS_Sediment_Incubations_Respiration_Rates.csv") %>% 
+  clean_names() %>% 
+  mutate(sample_name = str_sub(sample_name, 1, 6)) %>% 
+  select(sample_name, contains("mg_per_l")) 
+
+ss22_doc <- read_csv("data/CM_SSS_Data_Package/CM_SSS_Water_NPOC_TN_Summary.csv") %>% 
+  clean_names() %>% 
+  rename_all(funs(stringr::str_replace_all(., "mean_[:digit:]{5}_", ""))) %>% 
+  select(sample_name, contains("mg_per_l")) %>% 
+  mutate(across(everything(), ~replace(., . ==  -9999 , NA)))
+
+
+
+
+ss22_samples <- inner_join(ss22_respiration, ss22_doc, by = "sample_name") %>% 
+  inner_join(ss22_igsns, by = "sample_name")
+
+ss22_samples
+```
+
+```{r Plot SS21 samples}
+
+make_ss22_sample_plot <- function(var){
+  ss22_samples %>% 
+  ggplot(aes(site_id, {{var}})) + 
+    geom_col()
+}
+
+plot_grid(make_ss22_sample_plot(respiration_rate_mg_per_l_per_h), 
+          make_ss22_sample_plot(npoc_mg_per_l_as_c), 
+          make_ss22_sample_plot(tn_mg_per_l_as_n),  
+          nrow = 1)
+          
+```
+
+### Coming soon
+
+#### RC2 SS22 MiniDot respiration datasets for 1 month
+
+
+#### RC3 2021-2022 (1+ yr!) grab sampling
+collected monthly, grab samples and sensors (Manta, YSI handheld, Ultrameter - no respiration)
+
+#### Left Mantas out through SS22 (maybe a month of data?)
+
+
+#### Random fire info
+
+2020 Fire: ()
+ - W20 burned, and W10 did not
+ 
+2022 - Evans Canyon Fire
+ - Both W10 and W20 burned
+
+
+### Other info informing our assumptions
+
+#### How many samples?
+ - 1 - per AMP
+ - 2 times min - deploy & retrieve
+ - 3 times potentially? - deploy, maintain, retrieve (cotton strips might not last a month)
+
+
+### What data do we need, and why
+
+- In-situ respiration for as long as possible (Minidot, Barotroll and HOBO) - probably entails a wading transect
+- TSS - large change between 21/22 - linked to respiration? (no clear companion analyses)
+- DOC/TDN (OCN) - two birds (C and N) w one analytical stone
+
+
+### Other thoughts: 
+- plenty of reaches, including FT, CDOM, Ions, lab respiration (but would be a pain), but above are essentials
+- CAVEAT: Don't know what 2021 respiration time-series look like, hard to guess what's important without seeing prior data!
+
+
+
