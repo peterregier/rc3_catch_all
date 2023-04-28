@@ -81,7 +81,7 @@ ss21_sites[ss21_sites %in% sss_unburned]
 
 So this is interesting! If we included the 11 reference sites that have data for SS21 and SS22, and the 11 burned SSS site (of which 3 were included in both SS21 and SS22), we'd have 22 sites. It's not ideal that we don't have pre-fire data for most of the impacted sites, but this looks like a nice potential group. Let's use histograms to see if distributions of potential drivers of respiration differ between burned and unburned (reference) groups.
 
-```{r, fig.height = 5, fig.width = 8, fig.align = "left"}
+```{r, fig.height = 8, fig.width = 8, fig.align = "left"}
 
 site_list_v1 <- c(sss_burned, ss21_sites[ss21_sites %in% sss_unburned])
 
@@ -96,10 +96,12 @@ sites_v1 <- sites %>%
 ## PctShrb2016Ws - percent cover as shrub/shrubland
 ## PctMxFst2016Ws - percent cover as mixed deciduous/evergreen forest
 ## PctConif2016Ws - percent cover as evergreen forest
+## areasqkm - Catchment area
+## qa_ma - mean annual discharge
 site_metadata <- read_csv("data/Site_Selection_Geospatial_Output_4.20.23.csv") %>%
   rename("site_id" = site, 
          "stream_order" = streamorde) %>%
-  dplyr::select(site_id, stream_order, AriditySite, PctShrb2016Ws, PctConif2016Ws) %>% 
+  dplyr::select(site_id, stream_order, AriditySite, PctShrb2016Ws, PctConif2016Ws, areasqkm, qa_ma) %>% 
   clean_names()
   
 ## Join the datasets
@@ -114,6 +116,8 @@ plot_grid(make_density_plot("stream_order") + ggtitle("Stream order"),
           make_density_plot("aridity_site") + ggtitle("Aridity"), 
           make_density_plot("pct_shrb2016ws") + ggtitle("% Shrubs"), 
           make_density_plot("pct_conif2016ws") + ggtitle("% Conifers"), 
+          make_density_plot("areasqkm") + ggtitle("Catchment area"), 
+          make_density_plot("qa_ma") + ggtitle("Mean annual Q"), 
           ncol = 2)
 ```
 ***I have not looked at SSFS sites***. My priority here is more data for sites we use, since we've got spatial in spades, but temporal is limiting and is an important consideration. Also interpreting a single point in time for some sites and not others feels hard to defend to me.
