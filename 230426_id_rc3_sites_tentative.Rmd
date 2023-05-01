@@ -22,6 +22,7 @@ p_load(tidyverse,
        janitor,
        ggsflabel, 
        plotly,
+       nhdplusTools,
        tmaptools, #crop_shape
        cowplot)
 
@@ -74,16 +75,19 @@ Now, let's see which unburned sites were sampled in SS21:
 
 ```{r}
 
+
 sss_unburned <- sites %>% filter(study_group == "SSS" & type == "Reference") %>% pull(site_id)
 
-ss21_sites[ss21_sites %in% sss_unburned]
+#ss21_sites[ss21_sites %in% sss_unburned]
 ```
 
 So this is interesting! If we included the 11 reference sites that have data for SS21 and SS22, and the 11 burned SSS site (of which 3 were included in both SS21 and SS22), we'd have 22 sites. It's not ideal that we don't have pre-fire data for most of the impacted sites, but this looks like a nice potential group. Let's use histograms to see if distributions of potential drivers of respiration differ between burned and unburned (reference) groups.
 
 ```{r, fig.height = 8, fig.width = 8, fig.align = "left"}
 
-site_list_v1 <- c(sss_burned, ss21_sites[ss21_sites %in% sss_unburned])
+site_list_v1 <- c(sss_burned,  
+                  sss_unburned)
+                  #ss21_sites[ss21_sites %in% sss_unburned])
 
 site_list_v1
 
@@ -119,5 +123,84 @@ plot_grid(make_density_plot("stream_order") + ggtitle("Stream order"),
           make_density_plot("areasqkm") + ggtitle("Catchment area"), 
           make_density_plot("qa_ma") + ggtitle("Mean annual Q"), 
           ncol = 2)
+
+
+write_csv(site_metadata_v1, "data/230501_potential_sites.csv")
 ```
 ***I have not looked at SSFS sites***. My priority here is more data for sites we use, since we've got spatial in spades, but temporal is limiting and is an important consideration. Also interpreting a single point in time for some sites and not others feels hard to defend to me.
+
+
+Adding a quick map to visualize the spatial distributions of sites
+
+```{r}
+
+library(sf, 
+        ggthemes, 
+        ggsfrepel)
+
+common_crs = 4326
+
+
+
+sites_sf <- st_as_sf(sites_v1, coords = c("long", "lat"), crs = common_crs)
+
+huc <- get_huc(AOI = sites_sf %>% slice(1), type = "huc04")
+
+flowlines <- get_nhdplus(AOI = huc)
+
+
+ggplot() + 
+  geom_sf(data = huc, fill = NA) +
+  geom_sf(data = flowlines, color = "lightblue") + 
+  geom_sf(data = flowlines %>% filter(grepl("Yakima", gnis_name)), color = "blue") + 
+  geom_sf(data = sites_sf, aes(color = type), size = 2) + 
+  geom_sf_label_repel(data = sites_sf, aes(label = site_id, color = type), show.legend = F) +
+  scale_color_manual(values = c("red", "blue")) +
+  theme_map()
+x
+```
+
+
+Adding to this, we're now thinking that T02, TO3, TO7 are maybe all out since they're main-stem, and so they're likely somewhat fire-impacted. In addition, if we filter by discharge, we should remove S57. If we include all reference sites (remove the SS21 data requirement)
+
+```{r}
+
+## Sites to remove
+  sites_to_remove <- c("S57", "T02", "T03", "T07", #removed because high flow
+                       "S63P") # removed because spatial outlier
+                      
+
+site_metadata_v2 <- site_metadata_v1 %>% 
+  filter(!(site_id %in% sites_to_remove))
+
+make_density_plot_v2 <- function(var){
+  ggplot(site_metadata_v2, aes_string(var, fill = "type")) + 
+    geom_density(alpha = 0.5)
+}
+
+plot_grid(make_density_plot_v2("stream_order") + ggtitle("Stream order"), 
+          make_density_plot_v2("aridity_site") + ggtitle("Aridity"), 
+          make_density_plot_v2("pct_shrb2016ws") + ggtitle("% Shrubs"), 
+          make_density_plot_v2("pct_conif2016ws") + ggtitle("% Conifers"), 
+          make_density_plot_v2("areasqkm") + ggtitle("Catchment area"), 
+          make_density_plot_v2("qa_ma") + ggtitle("Mean annual Q"), 
+          ncol = 2)
+
+sites_sf_v2 <- st_as_sf(site_metadata_v2, coords = c("long", "lat"), crs = common_crs)
+
+ggplot() + 
+  geom_sf(data = huc, fill = NA) +
+  geom_sf(data = flowlines, color = "lightblue") + 
+  geom_sf(data = flowlines %>% filter(grepl("Yakima", gnis_name)), color = "blue") + 
+  geom_sf(data = sites_sf_v2, aes(color = type), size = 2) + 
+  geom_sf_label_repel(data = sites_sf_v2, aes(label = site_id, color = type), show.legend = F) +
+  scale_color_manual(values = c("red", "blue")) +
+  theme_map()
+
+```
+
+
+
+
+
+
